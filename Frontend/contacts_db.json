@@ -1,0 +1,14 @@
+{
+    "Alice Dupont": {
+        "email": "alice@example.com",
+        "telephone": "0123456789"
+    },
+    "Bob Martin": {
+        "email": "bob@example.com",
+        "telephone": "0987654321"
+    },
+    "jj": {
+        "email": "zehi@ki.com",
+        "telephone": "k"
+    }
+}

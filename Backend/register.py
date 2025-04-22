@@ -3,7 +3,7 @@ from db import db, cursor
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.primitives import serialization
 
-# 1️⃣ Inscription utilisateur
+#  Inscription utilisateur
 def register(username, email, password):
     # Hachage + salage du mot de passe
     password = password.encode('utf-8')
@@ -26,10 +26,10 @@ def register(username, email, password):
         format=serialization.PublicFormat.SubjectPublicKeyInfo
     )
 
-    # ✅ Vérification que le username ou l'email n'existent pas déjà
+    #  Vérification que le username ou l'email n'existent pas déjà
     cursor.execute("SELECT id FROM users WHERE username=%s OR email=%s", (username, email))
     if cursor.fetchone():
-        print("⚠️ Ce nom d'utilisateur ou cet email existe déjà.")
+        print("XXX Ce nom d'utilisateur ou cet email existe déjà.")
         return
 
     # Enregistrement dans la BDD
@@ -41,4 +41,4 @@ def register(username, email, password):
     with open(f"{username}_private_key.pem", "wb") as f:
         f.write(private_pem)
 
-    print("✅ Utilisateur enregistré avec succès et clés générées.")
+    print(" Utilisateur enregistré avec succès et clés générées.")

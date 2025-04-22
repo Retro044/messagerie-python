@@ -112,7 +112,7 @@ class PageInscription(tk.Frame):
 
         try:
             register(nom, email, mdp)
-            self.label_erreur_inscription.config(text="✅ Inscription réussie")
+            self.label_erreur_inscription.config(text="Inscription réussie")
             self.controleur.afficher_page("PageConnexion")
         except Exception as e:
             self.label_erreur_inscription.config(text=f"Erreur : {e}")
@@ -134,7 +134,7 @@ class PagePrincipale(tk.Frame):
                 command=lambda c=contact: controleur.afficher_page("PageConversation", c)
             ).pack(pady=3)
 
-        # ✅ Bouton Retour en dehors de la boucle
+        #  Bouton Retour en dehors de la boucle
         bouton_retour = ttk.Button(
             self,
             text="Retour",

@@ -11,7 +11,7 @@ register("alice", "alice@email.com", "mdp123")
 register("bob", "bob@email.com", "mdp456")
 
 # Envoi d’un message de Alice à Bob
-send_message("alice", "bob", "Salut Bob ! Ce message est chiffré 🔐")
+send_message("alice", "bob", "Salut Bob ! Ce message est chiffré (lock)")
 
 # Bob reçoit et déchiffre ses messages
 receive_messages("bob")

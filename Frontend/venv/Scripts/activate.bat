@@ -8,7 +8,7 @@ if defined _OLD_CODEPAGE (
     "%SystemRoot%\System32\chcp.com" 65001 > nul
 )
 
-set VIRTUAL_ENV=C:\Users\ps5fo\OneDrive\Documents\messagerie python\venv
+set VIRTUAL_ENV=C:\wamp64\www\messagerie python\venv
 
 if not defined PROMPT set PROMPT=$P$G
 

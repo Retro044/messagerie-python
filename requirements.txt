@@ -1,0 +1,11 @@
+#  Backend
+bcrypt==4.1.2
+cryptography==42.0.5
+mysql-connector-python==8.3.0
+base64io==1.0.0  # si utilisé pour encodage base64 manuellement
+
+#  Frontend
+ 
+pyaudio==0.2.13
+opencv-python==4.9.0.80
+numpy==1.26.4

@@ -1,16 +1,7 @@
 import bcrypt
-import mysql.connector
+from db import db, cursor
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.primitives import serialization
-
-# Connexion à ta BDD MySQL
-db = mysql.connector.connect(
-    host="localhost",
-    user="root",
-    password="",
-    database="locktalk"
-)
-cursor = db.cursor()
 
 # 1️⃣ Inscription utilisateur
 def register(username, email, password):
@@ -35,6 +26,12 @@ def register(username, email, password):
         format=serialization.PublicFormat.SubjectPublicKeyInfo
     )
 
+    # ✅ Vérification que le username ou l'email n'existent pas déjà
+    cursor.execute("SELECT id FROM users WHERE username=%s OR email=%s", (username, email))
+    if cursor.fetchone():
+        print("⚠️ Ce nom d'utilisateur ou cet email existe déjà.")
+        return
+
     # Enregistrement dans la BDD
     cursor.execute("INSERT INTO users (username, email, password_hash, public_key) VALUES (%s, %s, %s, %s)",
                    (username, email, hashed_password, public_pem.decode('utf-8')))
@@ -45,6 +42,3 @@ def register(username, email, password):
         f.write(private_pem)
 
     print("✅ Utilisateur enregistré avec succès et clés générées.")
-
-# Exemple
-register("alice", "alice@email.com", "1234SecurePassword")

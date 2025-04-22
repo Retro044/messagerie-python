@@ -1,3 +1,5 @@
+import bcrypt
+from db import db, cursor 
 def login(username, password):
     cursor.execute("SELECT password_hash FROM users WHERE username=%s", (username,))
     result = cursor.fetchone()
@@ -10,3 +12,4 @@ def login(username, password):
             print(" Mot de passe incorrect.")
     else:
         print(" Utilisateur non trouvé.")
+        return False

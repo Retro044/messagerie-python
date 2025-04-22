@@ -1,0 +1,13 @@
+from register import register
+from send_message import send_message
+from receive_messages import receive_messages
+
+# 1️⃣ Création des utilisateurs (si pas déjà en base)
+register("alice", "alice@email.com", "mdp123")
+register("bob", "bob@email.com", "mdp456")
+
+# 2️⃣ Envoi d’un message de Alice à Bob
+send_message("alice", "bob", "Salut Bob ! Ce message est chiffré 🔐")
+
+# 3️⃣ Bob reçoit et déchiffre ses messages
+receive_messages("bob")

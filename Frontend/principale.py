@@ -1,236 +1,261 @@
 import tkinter as tk
+from tkinter import ttk
 import os
-import cv2
-import pyaudio
-import wave
-import numpy as np
+import sys
 import threading
 import time
+import re 
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'Backend')))
+
+from register import register
+from send_message import send_message
+from receive_messages import receive_messages
 from crypto_utils import encrypt_file, decrypt_file
-
-def send_file(filename):
-    encrypt_file(filename)
-    print(f"Fichier {filename} chiffré et envoyé")
-
-def receive_file(filename):
-    decrypt_file(filename)
-    print(f"Fichier {filename} reçu et déchiffré")
-
-def record_audio(filename="audio_message.wav", duration=4):
-    # Configuration pour l'enregistrement audio
-    CHUNK = 1024
-    FORMAT = pyaudio.paInt16
-    CHANNELS = 1
-    RATE = 44100
-    
-    p = pyaudio.PyAudio()
-    stream = p.open(format=FORMAT,
-                    channels=CHANNELS,
-                    rate=RATE,
-                    input=True,
-                    frames_per_buffer=CHUNK)
-    
-    print(f"Enregistrement audio pendant {duration} secondes...")
-    frames = []
-    
-    for i in range(0, int(RATE / CHUNK * duration)):
-        data = stream.read(CHUNK)
-        frames.append(data)
-    
-    print("Enregistrement terminé")
-    stream.stop_stream()
-    stream.close()
-    p.terminate()
-    
-    # Sauvegarde dans un fichier WAV
-    wf = wave.open(filename, 'wb')
-    wf.setnchannels(CHANNELS)
-    wf.setsampwidth(p.get_sample_size(FORMAT))
-    wf.setframerate(RATE)
-    wf.writeframes(b''.join(frames))
-    wf.close()
-    
-    send_file(filename)
-
-def play_audio(filename="audio_message.wav"):
-    # Vérifier si le fichier existe d'abord
-    if not os.path.exists(filename):
-        print(f"Le fichier {filename} n'existe pas")
-        return
-        
-    # Sur Windows, utiliser le lecteur par défaut
-    os.system(f"start {filename}")
-
-def record_video(filename="video_message.avi", duration=4):
-    cap = cv2.VideoCapture(0)
-    # Définir la résolution
-    cap.set(3, 640)
-    cap.set(4, 480)
-    
-    # Définir le codec
-    fourcc = cv2.VideoWriter_fourcc(*'XVID')
-    out = cv2.VideoWriter(filename, fourcc, 20.0, (640, 480))
-    
-    start_time = time.time()
-    print(f"Enregistrement vidéo pendant {duration} secondes...")
-    
-    while(cap.isOpened() and time.time() - start_time < duration):
-        ret, frame = cap.read()
-        if ret:
-            out.write(frame)
-            cv2.imshow('Enregistrement vidéo', frame)
-            if cv2.waitKey(1) & 0xFF == ord('q'):
-                break
-        else:
-            break
-    
-    cap.release()
-    out.release()
-    cv2.destroyAllWindows()
-    print("Enregistrement terminé")
-    
-    send_file(filename)
-
-def play_video(filename="video_message.avi"):
-    # Vérifier si le fichier existe d'abord
-    if not os.path.exists(filename):
-        print(f"Le fichier {filename} n'existe pas")
-        return
-        
-    cap = cv2.VideoCapture(filename)
-    
-    while cap.isOpened():
-        ret, frame = cap.read()
-        if not ret:
-            break
-        cv2.imshow("Lecture vidéo", frame)
-        if cv2.waitKey(25) & 0xFF == ord("q"):  # Arrêter avec "q"
-            break
-    
-    cap.release()
-    cv2.destroyAllWindows()
-
-def record_audio_thread():
-    threading.Thread(target=record_audio).start()
-
-def record_video_thread():
-    threading.Thread(target=record_video).start()
-
-def show_page(page):
-    for p in pages.values():
-        p.pack_forget()
-    page.pack()
-
-def on_register():
-    username = entry_username.get()
-    email = entry_email.get()
-    password = entry_password.get()
-    print(f"tentative d'inscription avec : {username} / {email} / {password}")
-
-def send_message():
-    message = entry_message.get()
-    if message:
-        print(f"message envoyé : {message}")
-        entry_message.delete(0, tk.END)
-
-root = tk.Tk()
-root.title("messagerie sécurisée")
-
-# page de connexion
-page_login = tk.Frame(root)
-label_login = tk.Label(page_login, text="page de connexion")
-label_login.pack()
-button_to_register = tk.Button(page_login, text="s'inscrire", command=lambda: show_page(page_register))
-button_to_register.pack()
-button_to_login = tk.Button(page_login, text="se connecter", command=lambda: show_page(page_main))
-button_to_login.pack()
-
-# page d'inscription
-page_register = tk.Frame(root)
-label_register = tk.Label(page_register, text="page d'inscription")
-label_register.pack()
-
-label_username = tk.Label(page_register, text="nom d'utilisateur :")
-label_username.pack()
-entry_username = tk.Entry(page_register)
-entry_username.pack()
-
-label_email = tk.Label(page_register, text="email :")
-label_email.pack()
-entry_email = tk.Entry(page_register)
-entry_email.pack()
-
-label_password = tk.Label(page_register, text="mot de passe :")
-label_password.pack()
-entry_password = tk.Entry(page_register, show="*")
-entry_password.pack()
-
-button_register = tk.Button(page_register, text="s'inscrire", command=on_register)
-button_register.pack()
-button_to_login = tk.Button(page_register, text="retour", command=lambda: show_page(page_login))
-button_to_login.pack()
+from db import cursor, db  # nécessaire pour gérer les statuts
 
 
 
+class PageConnexion(tk.Frame):
+    def __init__(self, parent, controleur):
+        tk.Frame.__init__(self, parent)
+        self.controleur = controleur
+        titre = ttk.Label(self, text="Page de Connexion", font=("Arial", 16))
+        titre.pack(pady=10)
+
+        label_nom_utilisateur = ttk.Label(self, text="Nom d'utilisateur :")
+        label_nom_utilisateur.pack()
+        self.entree_nom_utilisateur = ttk.Entry(self)
+        self.entree_nom_utilisateur.pack()
+
+        label_mot_de_passe = ttk.Label(self, text="Mot de passe :")
+        label_mot_de_passe.pack()
+        self.entree_mot_de_passe = ttk.Entry(self, show="*")
+        self.entree_mot_de_passe.pack()
+
+        self.label_erreur_connexion = ttk.Label(self, text="", foreground="red")
+        self.label_erreur_connexion.pack()
+
+        bouton_connexion = ttk.Button(self, text="Se connecter", command=self.action_connexion)
+        bouton_connexion.pack(pady=5)
+        bouton_inscription = ttk.Button(self, text="S'inscrire", command=lambda: controleur.afficher_page("PageInscription"))
+        bouton_inscription.pack(pady=5)
+
+    def action_connexion(self):
+        nom_utilisateur = self.entree_nom_utilisateur.get()
+        mot_de_passe = self.entree_mot_de_passe.get()
+        try:
+            self.label_erreur_connexion.config(text="")
+            self.controleur.utilisateur_connecte = nom_utilisateur
+            cursor.execute("UPDATE users SET statut = %s, last_seen = NOW() WHERE username = %s", ("en ligne", nom_utilisateur))
+            db.commit()
+            self.controleur.afficher_page("PagePrincipale")
+        except Exception as e:
+            self.label_erreur_connexion.config(text=f"Erreur : {e}")
+
+class PageInscription(tk.Frame):
+    def __init__(self, parent, controleur):
+        tk.Frame.__init__(self, parent)
+        self.controleur = controleur
+        titre = ttk.Label(self, text="Page d'Inscription", font=("Arial", 16))
+        titre.pack(pady=10)
+
+        label_nom_utilisateur = ttk.Label(self, text="Nom d'utilisateur :")
+        label_nom_utilisateur.pack()
+        self.entree_nom_utilisateur = ttk.Entry(self)
+        self.entree_nom_utilisateur.pack()
+
+        label_email = ttk.Label(self, text="Email :")
+        label_email.pack()
+        self.entree_email = ttk.Entry(self)
+        self.entree_email.pack()
+
+        label_mot_de_passe = ttk.Label(self, text="Mot de passe :")
+        label_mot_de_passe.pack()
+        self.entree_mot_de_passe = ttk.Entry(self, show="*")
+        self.entree_mot_de_passe.pack()
+
+        self.label_erreur_inscription = ttk.Label(self, text="", foreground="red")
+        self.label_erreur_inscription.pack()
+
+        bouton_inscription = ttk.Button(self, text="S'inscrire", command=self.action_inscription)
+        bouton_inscription.pack(pady=5)
+        bouton_retour = ttk.Button(self, text="Retour", command=lambda: controleur.afficher_page("PageConnexion"))
+        bouton_retour.pack(pady=5)
+
+    def mot_de_passe_est_fort(self, mdp):
+        if len(mdp) < 8:
+            return False, "Le mot de passe doit contenir au moins 8 caractères."
+        if not re.search(r"[A-Z]", mdp):
+            return False, "Le mot de passe doit contenir une majuscule."
+        if not re.search(r"[a-z]", mdp):
+            return False, "Le mot de passe doit contenir une minuscule."
+        if not re.search(r"\d", mdp):
+            return False, "Le mot de passe doit contenir un chiffre."
+        if not re.search(r"[!@#$%^&*(),.?\":{}|<>]", mdp):
+            return False, "Le mot de passe doit contenir un caractère spécial."
+        return True, ""
+
+    def action_inscription(self):
+        nom = self.entree_nom_utilisateur.get()
+        email = self.entree_email.get()
+        mdp = self.entree_mot_de_passe.get()
+
+        if not nom or not email or not mdp:
+            self.label_erreur_inscription.config(text="Champs manquants")
+            return
+
+        fort, message = self.mot_de_passe_est_fort(mdp)
+        if not fort:
+            self.label_erreur_inscription.config(text=message)
+            return
+
+        try:
+            register(nom, email, mdp)
+            self.label_erreur_inscription.config(text="✅ Inscription réussie")
+            self.controleur.afficher_page("PageConnexion")
+        except Exception as e:
+            self.label_erreur_inscription.config(text=f"Erreur : {e}")
+
+
+class PagePrincipale(tk.Frame):
+    def __init__(self, parent, controleur):
+        tk.Frame.__init__(self, parent)
+        self.controleur = controleur
+        label = ttk.Label(self, text="Conversations", font=("Arial", 16))
+        label.pack(pady=10)
+
+        self.contacts = ["Andrea", "Arsen", "Arthur", "oo", "uu"]
+
+        for contact in self.contacts:
+            ttk.Button(
+                self,
+                text=f"Parler avec {contact}",
+                command=lambda c=contact: controleur.afficher_page("PageConversation", c)
+            ).pack(pady=3)
+
+        # ✅ Bouton Retour en dehors de la boucle
+        bouton_retour = ttk.Button(
+            self,
+            text="Retour",
+            command=lambda: controleur.afficher_page("PageConnexion")
+        )
+        bouton_retour.pack(pady=10)
 
 
 
-# page principale (liste des conversations)
-page_main = tk.Frame(root)
-label_main = tk.Label(page_main, text="liste des conversations")
-label_main.pack()
-button_to_conversation = tk.Button(page_main, text="ouvrir une conversation", command=lambda: show_page(page_conversation))
-button_to_conversation.pack()
+class PageConversation(tk.Frame):
+    def __init__(self, parent, controleur):
+        tk.Frame.__init__(self, parent)
+        self.controleur = controleur
+        self.nom_utilisateur_cible = ""  
+        self.nom_contact = tk.StringVar()
+        label = ttk.Label(self, textvariable=self.nom_contact, font=("Arial", 16))
+        label.pack(pady=10)
 
-# page de conversation
-page_conversation = tk.Frame(root)
-label_conversation = tk.Label(page_conversation, text="conversation avec alice")
-label_conversation.pack()
+        self.zone_messages = tk.Text(self, height=15, width=60)
+        self.zone_messages.pack(pady=10)
+        self.zone_messages.config(state=tk.DISABLED)
 
-# Ajout des boutons pour l'audio et la vidéo
-frame_media = tk.Frame(page_conversation)
-frame_media.pack(pady=10)
+        self.entry_message = ttk.Entry(self, width=50)
+        self.entry_message.pack()
+        ttk.Button(self, text="Envoyer", command=self.envoyer_message).pack(pady=5)
+        bouton_retour = ttk.Button(self, text="Retour", command=lambda: self.controleur.afficher_page("PagePrincipale"))
+        bouton_retour.pack(pady=5)
 
-button_record_audio = tk.Button(frame_media, text="🎤 Enregistrer audio", command=record_audio_thread)
-button_record_audio.pack(side=tk.LEFT, padx=5)
+    def afficher_messages(self, contact):
+        self.nom_utilisateur_cible = contact  
+        self.mettre_a_jour_statut()
+        self.zone_messages.config(state=tk.NORMAL)
+        self.zone_messages.delete(1.0, tk.END)
+        messages = self.get_messages(self.controleur.utilisateur_connecte, contact)
+        for sender, message in messages:
+            if sender == contact:
+                self.zone_messages.insert(tk.END, f"{sender}: {message}\n")
+            elif sender == self.controleur.utilisateur_connecte:
+                self.zone_messages.insert(tk.END, f"Moi: {message}\n")
+        self.zone_messages.config(state=tk.DISABLED)
 
-button_play_audio = tk.Button(frame_media, text="🎧 Écouter audio", command=lambda: play_audio())
-button_play_audio.pack(side=tk.LEFT, padx=5)
+    def get_messages(self, user1, user2):
+        all_messages = receive_messages(user1)
+        return [(sender, message) for sender, message in all_messages if sender == user2 or sender == user1]
 
-button_record_video = tk.Button(frame_media, text="📹 Enregistrer vidéo", command=record_video_thread)
-button_record_video.pack(side=tk.LEFT, padx=5)
+    def envoyer_message(self):
+        msg = self.entry_message.get()
+        if msg:
+            sender = self.controleur.utilisateur_connecte
+            receiver = self.nom_utilisateur_cible
+            try:
+                # Vérifie si le destinataire existe
+                cursor.execute("SELECT id FROM users WHERE username = %s", (receiver,))
+                if cursor.fetchone() is None:
+                    raise Exception("Utilisateur destinataire introuvable.")
 
-button_play_video = tk.Button(frame_media, text="📽️ Voir vidéo", command=lambda: play_video())
-button_play_video.pack(side=tk.LEFT, padx=5)
+                send_message(sender, receiver, msg)
 
-button_to_send_message = tk.Button(page_conversation, text="envoyer un message", command=lambda: show_page(page_send_message))
-button_to_send_message.pack()
-button_to_main = tk.Button(page_conversation, text="retour", command=lambda: show_page(page_main))
-button_to_main.pack()
+                # Ajout du message immédiatement dans la zone
+                self.zone_messages.config(state=tk.NORMAL)
+                self.zone_messages.insert(tk.END, f"Moi: {msg}\n")
+                self.zone_messages.config(state=tk.DISABLED)
+                self.entry_message.delete(0, tk.END)
 
-# page envoyer un message
-page_send_message = tk.Frame(root)
-label_send_message = tk.Label(page_send_message, text="envoyer un message")
-label_send_message.pack()
+            except ValueError as ve:
+                print(f"Erreur de clé : {ve}")
+            except Exception as e:
+                print(f"Erreur lors de l'envoi : {e}")
 
-entry_message = tk.Entry(page_send_message, width=50)
-entry_message.pack()
+    def mettre_a_jour_statut(self):
+        contact = self.nom_utilisateur_cible
+        try:
+            cursor.execute("SELECT statut FROM users WHERE username = %s", (contact,))
+            resultat = cursor.fetchone()
+            statut = resultat[0] if resultat else "inconnu"
+        except Exception as e:
+            print(f"Erreur statut : {e}")
+            statut = "erreur"
+        self.nom_contact.set(f"Conversation avec {contact} ({statut})")
+        self.after(5000, self.mettre_a_jour_statut)
 
-button_send = tk.Button(page_send_message, text="envoyer", command=send_message)
-button_send.pack()
-button_to_conversation = tk.Button(page_send_message, text="retour", command=lambda: show_page(page_conversation))
-button_to_conversation.pack()
 
-# stocker les pages dans un dictionnaire
-pages = {
-    "login": page_login,
-    "register": page_register,
-    "main": page_main,
-    "conversation": page_conversation,
-    "send_message": page_send_message,
-}
+class ApplicationMessagerie(tk.Tk):
+    def __init__(self):
+        tk.Tk.__init__(self)
+        self.title("Messagerie Sécurisée")
+        self.geometry("600x450")
+        self.utilisateur_connecte = None
 
-# afficher la page de connexion au démarrage
-show_page(page_login)
+        conteneur = tk.Frame(self)
+        conteneur.pack(fill="both", expand=True)
 
-root.mainloop()
+        self.pages = {}
+        for P in (PageConnexion, PageInscription, PagePrincipale, PageConversation):
+            nom = P.__name__
+            frame = P(conteneur, self)
+            self.pages[nom] = frame
+            frame.grid(row=0, column=0, sticky="nsew")
+
+        self.afficher_page("PageConnexion")
+
+    def afficher_page(self, nom, nom_contact=None):
+        page = self.pages[nom]
+        if nom == "PageConversation" and nom_contact:
+            page.afficher_messages(nom_contact)
+        page.tkraise()
+
+
+    def quitter_application(self):
+        if self.utilisateur_connecte:
+            try:
+                cursor.execute(
+                    "UPDATE users SET statut = %s, last_seen = NOW() WHERE username = %s",
+                    ("hors ligne", self.utilisateur_connecte)
+                )
+                db.commit()
+            except Exception as e:
+                print(f"Erreur lors de la mise à jour du statut : {e}")
+        self.destroy()
+
+if __name__ == "__main__":
+    app = ApplicationMessagerie()
+    app.protocol("WM_DELETE_WINDOW", app.quitter_application)
+    app.mainloop()
